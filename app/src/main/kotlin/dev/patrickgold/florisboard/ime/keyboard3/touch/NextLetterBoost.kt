@@ -16,13 +16,21 @@ object NextLetterBoost {
     var probs by mutableStateOf<Map<String, Float>>(emptyMap())
         private set
 
+    // Makes Arabic spelling variants match each other (hamza forms, alef maqsura, ta marbuta)
+    fun norm(s: String): String = s.lowercase()
+        .replace('\u0623', '\u0627')
+        .replace('\u0625', '\u0627')
+        .replace('\u0622', '\u0627')
+        .replace('\u0649', '\u064A')
+        .replace('\u0629', '\u0647')
+
     fun refresh(editor: ImeEditor) {
         val before = editor.getSurroundingText(40, 0).textBefore
-        val prefix = before.takeLastWhile { it.isLetter() }.lowercase()
+        val prefix = norm(before.takeLastWhile { it.isLetter() })
         probs = computeProbs(prefix)
     }
 
-    fun keyText(key: TouchKey): String? = key.attrs.output?.asAttrValue()?.lowercase()
+    fun keyText(key: TouchKey): String? = key.attrs.output?.asAttrValue()?.let { norm(it) }
 
     fun isLetterKey(key: TouchKey): Boolean {
         val t = keyText(key) ?: return false
@@ -76,30 +84,100 @@ object NextLetterBoost {
         val counts = HashMap<String, Float>()
         var total = 0f
         for ((word, freq) in WORDS) {
-            if (word.length > prefix.length && word.startsWith(prefix)) {
-                val c = word[prefix.length].toString()
-                counts[c] = (counts[c] ?: 0f) + freq
+            if (word.length >= prefix.length && word.startsWith(prefix)) {
                 total += freq
+                // if the word is already complete, it only counts as "the word may end here"
+                if (word.length > prefix.length) {
+                    val c = word[prefix.length].toString()
+                    counts[c] = (counts[c] ?: 0f) + freq
+                }
             }
         }
         if (total <= 0f) return emptyMap()
         return counts.mapValues { it.value / total }
     }
 
-    private val WORDS: List<Pair<String, Float>> = (
-        "the:100 that:50 this:40 there:30 then:20 they:35 them:20 these:15 think:15 though:6 through:8 " +
-        "three:8 thing:12 things:8 what:30 when:25 where:15 which:20 while:10 who:20 with:45 would:25 " +
-        "will:35 was:60 were:25 we:40 you:55 your:30 yes:8 year:12 and:90 are:45 about:25 after:15 " +
-        "again:12 all:35 also:15 any:15 because:12 been:18 before:10 but:50 by:30 can:35 come:15 " +
-        "could:20 day:15 do:30 down:12 even:10 first:12 for:55 from:35 get:18 give:10 go:20 good:12 " +
-        "have:45 he:40 her:25 here:15 him:15 his:35 how:20 if:25 in:70 into:12 is:60 it:60 its:12 " +
-        "just:15 know:18 like:20 look:10 make:15 many:10 me:20 more:15 most:8 my:25 new:10 no:20 " +
-        "not:45 now:15 of:80 on:45 one:25 only:10 or:30 other:10 our:12 out:20 over:10 people:12 " +
-        "say:10 see:15 she:25 so:30 some:15 take:10 tell:10 than:10 time:15 to:90 two:8 up:20 us:10 " +
-        "use:10 very:8 want:12 way:10 well:10 work:10 hello:6 help:6 happy:4 house:5 hand:4 " +
-        "thanks:6 text:3 type:3 typing:3 keyboard:2"
-        ).split(" ").map { entry ->
-        val (w, f) = entry.split(":")
-        w to f.toFloat()
-    }
+    // To add words: just put them in the lists below, separated by spaces.
+    // Earlier in the list = more common. Any language works.
+    private fun ranked(text: String): List<Pair<String, Float>> =
+        text.split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .map { norm(it) }
+            .distinct()
+            .mapIndexed { i, w -> w to 1000f / (i + 10) }
+
+    private val WORDS: List<Pair<String, Float>> = ranked(ENGLISH_WORDS) + ranked(ARABIC_WORDS)
+
+    private const val ENGLISH_WORDS = """
+        the of and to a in is it you that he was
+        for on are with as his they be at one have this
+        from or had by but what some we can out other were
+        all there when up use your how said an each she which
+        do their time if will way about many then them write would
+        like so these her long make thing see him two has look
+        more day could go come did number sound no most people my
+        over know water than call first who may down side been now
+        find any new work part take get place made live where after
+        back little only round man year came show every good me give
+        our under name very through just form sentence great think say help
+        low line differ turn cause much mean before move right boy old
+        too same tell does set three want air well also play small
+        end put home read hand port large spell add even land here
+        must big high such follow act why ask men change went light
+        kind off need house picture try us again animal point mother world
+        near build self earth father head stand own page should country found
+        answer school grow study still learn plant cover food sun four between
+        state keep eye never last let thought city tree cross farm hard
+        start might story saw far sea draw left late run while press
+        close night real life few north open seem together next white children
+        begin got walk example ease paper group always music those both mark
+        often letter until mile river car feet care second book carry took
+        science eat room friend began idea fish mountain stop once base hear
+        horse cut sure watch color face wood main enough plain girl usual
+        young ready above ever red list though feel talk bird soon body
+        dog family direct leave song measure door product black short class wind
+        question happen complete ship area half rock order fire south problem piece
+        told knew pass since top whole king space heard best hour better
+        true during hundred five remember step early hold west ground interest reach
+        fast sing listen six table travel less morning ten simple several toward
+        war lay against pattern slow center love person money serve appear road
+        map rain rule govern pull cold notice voice unit power town fine
+        certain fly fall lead cry dark machine note wait plan figure star
+        box field rest correct able pound done beauty drive stood contain front
+        teach week final gave green quick develop ocean warm free minute strong
+        special mind behind clear tail produce fact street nothing course stay wheel
+        full force blue object decide surface deep moon island foot system busy
+        test record boat common gold possible plane dry wonder laugh thousand ago
+        ran check game shape hot miss brought heat snow bring yes distant
+        fill east paint language among hello hi hey thanks thank please sorry
+        okay maybe today tomorrow tonight yesterday message text phone send happy birthday
+        really actually because probably already something anything everything someone going doing getting
+        looking thinking wanting having being coming trying working playing keyboard typing type
+        meet lunch dinner coffee tired sleep bad nice cool awesome perfect
+"""
+
+    private const val ARABIC_WORDS = """
+        في من على الى ان ما لا هذا هذه كان عن مع
+        او كل ذلك التي الذي بعد بين هو هي لم ثم قد
+        حتى عند اذا اي كيف لماذا متى اين ماذا نعم لكن بل
+        ايضا هناك هنا الان اليوم غدا امس دائما ابدا جدا كثير قليل
+        كبير صغير جديد قديم اول اخر بعض غير مثل بدون ضد حول
+        خلال منذ قبل فوق تحت داخل خارج امام وراء وش ايش ليش
+        وين شلون الحين توه مرة عشان علشان لانه لان بس مو مب
+        لسا بعدين بكرا زين طيب تمام حلو كويس ممتاز ابي ابغى ابا
+        تبي تبغى يبي ودي اقدر تقدر اللي هذي ذا ذي كذا شي
+        شيء ايوه ايه والله يعني خلاص يالله يلا حبيبي حبيبتي اخوي اخوك
+        ابوي امي يمه يبه عيال ربع شباب بنات رجال دوام شغل جوال
+        تلفون واتس رسالة اتصل كلمني ارسل شوف شفت سمعت عرفت فهمت قلت
+        قال يقول تقول رحت جيت راح يروح اروح اجي يجي سوي سويت
+        يسوي كنت تكون ابشر ابشري يهمك مشكور تسلم هلا حياك يوم ليلة
+        صباح مساء سنة شهر اسبوع ساعة دقيقة وقت مكان بيت مدرسة جامعة
+        عمل مال سيارة طريق مدينة بلد دولة عالم ناس رجل امراة طفل
+        ولد بنت اب ام اخ اخت صديق حياة حب قلب عين يد
+        راس وجه كلمة سؤال جواب مشكلة حل فكرة موضوع معنى خير شر
+        حق صح خطا ممكن لازم يجب يمكن اريد احب اعرف افهم اقول
+        اذهب اعمل اكتب اقرا اسمع انظر اكل اشرب انام ساعد شكرا عفوا
+        اسف مرحبا اهلا سلام عليكم ورحمة الله وبركاته الخير النور يعطيك العافية
+        بارك فيك جزاك شاء الحمد سبحان
+"""
 }
