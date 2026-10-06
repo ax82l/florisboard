@@ -40,6 +40,7 @@ import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard3.ImeController
 import dev.patrickgold.florisboard.ime.keyboard3.LocalImeController
 import dev.patrickgold.florisboard.ime.keyboard3.touch.InputShiftState
+import dev.patrickgold.florisboard.ime.keyboard3.touch.NextLetterBoost
 import dev.patrickgold.florisboard.ime.keyboard3.touch.TouchKey
 import dev.patrickgold.florisboard.ime.keyboard3.touch.TouchKeyboard
 import dev.patrickgold.jetpref.datastore.model.collectAsState
@@ -146,6 +147,7 @@ class PointerTracker(
         }
 
         val downLayerId = imeController.snapshotState().touchLayerId
+        NextLetterBoost.refresh(imeController.snapshotState().editor)
         val downKey = touchKeyboard.findKey(downLayerId, down.position.normalized(size)) ?: return
 
         val timingOptions = interactionController.activeTimingOptions.value
