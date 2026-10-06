@@ -76,6 +76,7 @@ class TouchKeyboard(
         if (layer == null || !NormalizedBounds.contains(position)) {
             return null
         }
+        NextLetterBoost.boostedKey(layer.keys, position)?.let { return it }
         // TODO improve runtime of this
         for (key in layer.keys) {
             if (key.hitbox.contains(position)) {
