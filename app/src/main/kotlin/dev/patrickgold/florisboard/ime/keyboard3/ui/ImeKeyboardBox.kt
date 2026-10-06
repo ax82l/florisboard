@@ -51,6 +51,7 @@ import dev.patrickgold.florisboard.ime.keyboard3.LocalImeController
 import dev.patrickgold.florisboard.ime.keyboard3.interaction.LongPress
 import dev.patrickgold.florisboard.ime.keyboard3.interaction.rememberPointerTracker
 import dev.patrickgold.florisboard.ime.keyboard3.interaction.trackPointerInput
+import dev.patrickgold.florisboard.ime.keyboard3.touch.NextLetterBoost
 import dev.patrickgold.florisboard.ime.keyboard3.touch.TouchKey
 import dev.patrickgold.florisboard.ime.keyboard3.touch.TouchLayer
 import dev.patrickgold.florisboard.ime.keyboard3.touch.TouchModel
@@ -78,6 +79,9 @@ fun ImeKeyboardBox(
     val windowController = LocalWindowController.current
 
     val imeState by imeController.activeState.collectAsState()
+    LaunchedEffect(imeState) {
+        NextLetterBoost.refresh(imeState.editor)
+    }
     val model by remember { derivedStateOf { imeState.model } }
     val touchLayerId by remember { derivedStateOf { imeState.touchLayerId } }
 
@@ -239,6 +243,22 @@ fun ImeKeyboardBox(
                                 )
                             }
                     )
+                }
+                if (devtoolsEnabled && debugShowTouchBoundaries) {
+                    val grownRect = NextLetterBoost.expandedHitbox(touchKey)
+                    if (grownRect != touchKey.hitbox) {
+                        Box(
+                            modifier = Modifier
+                                .layoutNormalized(grownRect)
+                                .drawWithContent {
+                                    drawContent()
+                                    drawRect(
+                                        color = Color.Green,
+                                        style = Stroke(width = 2.dp.toPx()),
+                                    )
+                                }
+                        )
+                    }
                 }
             }
         }
